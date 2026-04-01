@@ -50,7 +50,7 @@ header p{color:var(--g500);font-size:14px;}
 .det-box strong{color:var(--g800);}
 
 .config{background:#fff;border-radius:var(--r);box-shadow:var(--sh);padding:22px;margin-bottom:24px;}
-.cgrid{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:18px;}
+.cgrid{display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr;gap:18px;}
 @media(max-width:900px){.cgrid{grid-template-columns:1fr;}}
 .fld label{display:block;font-size:12px;font-weight:600;color:var(--g600);margin-bottom:4px;}
 .fld input,.fld select{width:100%;padding:8px 11px;border:1px solid var(--g300);border-radius:6px;font-size:14px;color:var(--g800);}
@@ -139,6 +139,12 @@ footer{text-align:center;padding:20px;color:var(--g400);font-size:12px;}
       <label>Transfer FROM (Source Store)</label>
       <select id="source-store"><option value="">— upload files first —</option></select>
       <div class="h">All stock in selected categories transfers out of this store</div>
+    </div>
+    <div class="fld">
+      <label>Transfer TO (Destination Stores)</label>
+      <select id="dest-stores" multiple style="height:92px;"><option value="">— upload files first —</option></select>
+      <div class="h">Select destination stores (Ctrl/Cmd for multiple)</div>
+      <button type="button" class="btn btn-o btn-sm" style="margin-top:5px;padding:3px 10px;font-size:11px;" id="btn-select-all-dest">Select All</button>
     </div>
     <div class="fld">
       <label>Categories to Transfer</label>
@@ -473,7 +479,28 @@ function updateSourceDropdown(){
     if(id===prev||(!prev&&id==='26218'))o.selected=true;
     sel.appendChild(o);
   });
+  updateDestDropdown();
 }
+
+function updateDestDropdown(){
+  const src=document.getElementById('source-store').value;
+  const sel=document.getElementById('dest-stores');
+  const prevSelected=new Set(Array.from(sel.selectedOptions).map(o=>o.value));
+  const all=new Set([...D.allStoreIds,...D.detectedStores]);
+  sel.innerHTML='';
+  [...all].sort().filter(id=>id!==src).forEach(id=>{
+    const o=document.createElement('option');o.value=id;
+    const nm=D.storeNames[id];o.textContent=id+(nm?' ('+nm+')':'');
+    o.selected=prevSelected.size>0?prevSelected.has(id):true;
+    sel.appendChild(o);
+  });
+}
+
+document.getElementById('source-store').addEventListener('change',updateDestDropdown);
+document.getElementById('btn-select-all-dest').addEventListener('click',()=>{
+  const sel=document.getElementById('dest-stores');
+  Array.from(sel.options).forEach(o=>o.selected=true);
+});
 
 function checkReady(){
   document.getElementById('btn-gen').disabled=!(Object.keys(D.stockMap).length&&Object.keys(D.libMap).length);
@@ -485,10 +512,12 @@ document.getElementById('btn-gen').addEventListener('click',generate);
 function generate(){
   document.getElementById('alerts').innerHTML='';
   const src=document.getElementById('source-store').value;
+  const destStores=new Set(Array.from(document.getElementById('dest-stores').selectedOptions).map(o=>o.value));
   const cats=Array.from(document.getElementById('categories').selectedOptions).map(o=>o.value);
   const minKeep=parseInt(document.getElementById('min-keep').value)||0;
 
   if(!src){alert_('e','Select a Source Store.');return;}
+  if(!destStores.size){alert_('e','Select at least one Destination Store.');return;}
   if(!cats.length){alert_('e','Select at least one category.');return;}
   if(!D.stockMap[src]){alert_('e',`Source store "${src}" has no stock data.`);return;}
   if(!D.hasSales)alert_('i','No sales data — transfers go to the first active store. For smarter ranking, also upload the sales_and_forecast sheet.');
@@ -504,10 +533,10 @@ function generate(){
 
     const dests=[];
     Object.entries(lib.active).forEach(([sid,on])=>{
-      if(!on||sid===src)return;
+      if(!on||sid===src||!destStores.has(sid))return;
       dests.push({storeId:sid,sales:D.salesMap[sid]?.[sku]||0,dStock:D.stockMap[sid]?.[sku]||0});
     });
-    if(!dests.length){skipped.push({sku,name:lib.name,reason:'No active destination stores'});return;}
+    if(!dests.length){skipped.push({sku,name:lib.name,reason:'No active selected destination stores'});return;}
 
     dests.sort((a,b)=>b.sales-a.sales);
     const transferable=Math.max(0,srcQty-minKeep);
