@@ -147,14 +147,29 @@ footer{text-align:center;padding:20px;color:var(--g400);font-size:12px;}
       <button type="button" class="btn btn-o btn-sm" style="margin-top:5px;padding:3px 10px;font-size:11px;" id="btn-select-all-dest">Select All</button>
     </div>
     <div class="fld">
-      <label>Categories to Transfer</label>
+      <label>Level 0 — Category</label>
       <select id="categories" multiple>
         <option value="Grocery Food" selected>Grocery Food</option>
         <option value="Grocery Non-Food" selected>Grocery Non-Food</option>
         <option value="Fresh Food">Fresh Food</option>
       </select>
       <div class="h">Hold Ctrl/Cmd for multiple</div>
+      <button type="button" class="btn btn-o btn-sm" style="margin-top:5px;padding:3px 10px;font-size:11px;" onclick="selAll('categories')">Select All</button>
     </div>
+    <div class="fld">
+      <label>Level 1 — Sub-Category</label>
+      <select id="subcategories" multiple style="height:92px;"><option value="">— upload Library first —</option></select>
+      <div class="h">Hold Ctrl/Cmd for multiple</div>
+      <button type="button" class="btn btn-o btn-sm" style="margin-top:5px;padding:3px 10px;font-size:11px;" onclick="selAll('subcategories')">Select All</button>
+    </div>
+    <div class="fld">
+      <label>Storage Condition</label>
+      <select id="storage-cond" multiple style="height:92px;"><option value="">— upload Library first —</option></select>
+      <div class="h">Hold Ctrl/Cmd for multiple</div>
+      <button type="button" class="btn btn-o btn-sm" style="margin-top:5px;padding:3px 10px;font-size:11px;" onclick="selAll('storage-cond')">Select All</button>
+    </div>
+  </div>
+  <div class="cgrid" style="margin-top:16px;">
     <div class="fld">
       <label>Min Stock to Keep in Source</label>
       <input type="number" id="min-keep" value="0" min="0">
@@ -380,6 +395,8 @@ document.getElementById('file-lib').addEventListener('change',e=>{
     let html=`<strong>Auto-detected:</strong> SKU: <span class="tag tag-info">${colL(info.skuCol)}</span>`;
     if(info.nameCol>=0) html+=` Name: <span class="tag tag-info">${colL(info.nameCol)}</span>`;
     if(info.catCol>=0) html+=` Category: <span class="tag tag-info">${colL(info.catCol)}</span>`;
+    if(info.subCatCol>=0) html+=` Sub-Cat: <span class="tag tag-info">${colL(info.subCatCol)}</span>`;
+    if(info.storageCol>=0) html+=` Storage: <span class="tag tag-info">${colL(info.storageCol)}</span>`;
     html+=`<br><strong>Store columns:</strong> `;
     info.storeCols.forEach(sc=>{
       const nm=D.storeNames[sc.storeId];
@@ -394,6 +411,24 @@ document.getElementById('file-lib').addEventListener('change',e=>{
         const o=document.createElement('option');
         o.value=c;o.textContent=c;
         o.selected=prev.has(c)||c==='Grocery Food'||c==='Grocery Non-Food';
+        sel.appendChild(o);
+      });
+    }
+    if(info.subCats.length){
+      const sel=document.getElementById('subcategories');
+      sel.innerHTML='';
+      info.subCats.sort().forEach(c=>{
+        const o=document.createElement('option');
+        o.value=c;o.textContent=c;o.selected=true;
+        sel.appendChild(o);
+      });
+    }
+    if(info.storages.length){
+      const sel=document.getElementById('storage-cond');
+      sel.innerHTML='';
+      info.storages.sort().forEach(c=>{
+        const o=document.createElement('option');
+        o.value=c;o.textContent=c;o.selected=true;
         sel.appendChild(o);
       });
     }
@@ -446,12 +481,21 @@ function parseLibrary(rows){
   hdr.forEach((h,i)=>{if(subCatCol<0&&cl(h).includes('Level 1'))subCatCol=i;});
   if(subCatCol<0&&catCol>=0)subCatCol=catCol+1;
 
+  // Storage condition column
+  let storageCol=-1;
+  hdr.forEach((h,i)=>{if(storageCol<0&&cl(h).toLowerCase().includes('storage condition'))storageCol=i;});
+
   const storeNameMap={};
   if(headerRowIdx>=2){const grp=rows[1]||[];verified.forEach(sc=>{const n=cl(grp[sc.col]);if(n&&!isNumId(n))storeNameMap[sc.storeId]=n;});}
-  const cats=new Set();
-  for(let r=dataStart;r<rows.length;r++){const v=cl((rows[r]||[])[catCol]);if(v)cats.add(v);}
+  const cats=new Set(), subCats=new Set(), storages=new Set();
+  for(let r=dataStart;r<rows.length;r++){
+    const row=rows[r]||[];
+    const v=cl(row[catCol]);if(v)cats.add(v);
+    if(subCatCol>=0){const s=cl(row[subCatCol]);if(s)subCats.add(s);}
+    if(storageCol>=0){const s=cl(row[storageCol]);if(s)storages.add(s);}
+  }
 
-  return{headerRowIdx,dataStart,hdr,skuCol,nameCol,catCol,subCatCol,storeCols:verified,storeNameMap,cats:[...cats],dataRows:rows.slice(dataStart)};
+  return{headerRowIdx,dataStart,hdr,skuCol,nameCol,catCol,subCatCol,storageCol,storeCols:verified,storeNameMap,cats:[...cats],subCats:[...subCats],storages:[...storages],dataRows:rows.slice(dataStart)};
 }
 
 function buildLibMap(info){
@@ -462,7 +506,7 @@ function buildLibMap(info){
     if(!sku||!/^\d+$/.test(sku))return;
     const active={};
     info.storeCols.forEach(sc=>{const v=cl(r[sc.col]).toUpperCase();active[sc.storeId]=(v==='TRUE'||v==='1'||v==='YES');});
-    map[sku]={name:cl(r[info.nameCol]),cat:cl(r[info.catCol]),subCat:info.subCatCol>=0?cl(r[info.subCatCol]):'',active};
+    map[sku]={name:cl(r[info.nameCol]),cat:cl(r[info.catCol]),subCat:info.subCatCol>=0?cl(r[info.subCatCol]):'',storage:info.storageCol>=0?cl(r[info.storageCol]):'',active};
   });
   return map;
 }
@@ -502,6 +546,8 @@ document.getElementById('btn-select-all-dest').addEventListener('click',()=>{
   Array.from(sel.options).forEach(o=>o.selected=true);
 });
 
+function selAll(id){Array.from(document.getElementById(id).options).forEach(o=>o.selected=true);}
+
 function checkReady(){
   document.getElementById('btn-gen').disabled=!(Object.keys(D.stockMap).length&&Object.keys(D.libMap).length);
 }
@@ -513,6 +559,8 @@ function generate(){
   document.getElementById('alerts').innerHTML='';
   const src=document.getElementById('source-store').value;
   const destStores=new Set(Array.from(document.getElementById('dest-stores').selectedOptions).map(o=>o.value));
+  const selSubCats=new Set(Array.from(document.getElementById('subcategories').selectedOptions).map(o=>o.value));
+  const selStorage=new Set(Array.from(document.getElementById('storage-cond').selectedOptions).map(o=>o.value));
   const cats=Array.from(document.getElementById('categories').selectedOptions).map(o=>o.value);
   const minKeep=parseInt(document.getElementById('min-keep').value)||0;
 
@@ -530,6 +578,8 @@ function generate(){
     const lib=D.libMap[sku];
     if(!lib){skipped.push({sku,name:'',reason:'Not in Library'});return;}
     if(!cats.some(c=>lib.cat.toLowerCase()===c.toLowerCase()))return;
+    if(selSubCats.size&&lib.subCat&&!selSubCats.has(lib.subCat))return;
+    if(selStorage.size&&lib.storage&&!selStorage.has(lib.storage))return;
 
     const dests=[];
     Object.entries(lib.active).forEach(([sid,on])=>{
