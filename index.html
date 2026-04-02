@@ -99,6 +99,16 @@ tbody tr:nth-child(even):hover{background:var(--g100);}
 .alert-i{background:var(--pl);color:#1e40af;border:1px solid #93c5fd;}
 
 footer{text-align:center;padding:20px;color:var(--g400);font-size:12px;}
+.how{background:#fff;border-radius:var(--r);box-shadow:var(--sh);padding:20px 24px;margin-bottom:28px;font-size:13px;color:var(--g600);line-height:1.7;}
+.how summary{font-size:14px;font-weight:700;color:var(--g800);cursor:pointer;padding:2px 0;}
+.how summary:hover{color:var(--p);}
+.how .cols{display:grid;grid-template-columns:1fr 1fr;gap:18px 28px;margin-top:14px;}
+@media(max-width:800px){.how .cols{grid-template-columns:1fr;}}
+.how h4{font-size:13px;font-weight:700;color:var(--g700);margin-bottom:4px;display:flex;align-items:center;gap:6px;}
+.how ol,.how ul{padding-left:20px;margin:4px 0 0;}
+.how li{margin-bottom:3px;}
+.how .rule{background:var(--g50);border-left:3px solid var(--p);border-radius:0 6px 6px 0;padding:8px 12px;margin-top:10px;}
+.how .rule li{margin-bottom:2px;}
 </style>
 </head>
 <body>
@@ -107,6 +117,40 @@ footer{text-align:center;padding:20px;color:var(--g400);font-size:12px;}
   <h1>Transfer PO Generator</h1>
   <p>Upload bm_export &amp; Library to generate Transfer Purchase Orders</p>
 </header>
+
+<details class="how" open>
+  <summary>How does this tool work?</summary>
+  <div class="cols">
+    <div>
+      <h4>📋 Quick Steps</h4>
+      <ol>
+        <li><strong>Upload files</strong> — bm_export (.xlsx or .csv) for stock &amp; sales, and the SKU Library file.</li>
+        <li><strong>Pick source store</strong> — the store you want to transfer stock <em>out of</em>.</li>
+        <li><strong>Choose destination stores</strong> — which stores can receive transfers (or Select All).</li>
+        <li><strong>Filter by category</strong> — Level 0, Level 1 sub-category, and Storage condition.</li>
+        <li><strong>Set schedule</strong> — pick a date &amp; time within the next 7 days.</li>
+        <li><strong>Generate &amp; download</strong> — review the table, adjust quantities if needed, then download the CSV.</li>
+      </ol>
+    </div>
+    <div>
+      <h4>📂 File Requirements</h4>
+      <ul>
+        <li><strong>bm_export</strong> — upload as a single <code>.xlsx</code> (recommended) to auto-detect both <em>current_stock</em> and <em>sales_and_forecast</em> sheets, or upload separate <code>.csv</code> files.</li>
+        <li><strong>Library</strong> — SKU Library file (<code>.xlsx</code> or <code>.csv</code>). Store active columns, categories, and storage conditions are auto-detected.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="rule">
+    <h4>⚙️ Transfer Rules</h4>
+    <ul>
+      <li>Only SKUs matching the selected <strong>Level 0 category</strong>, <strong>Level 1 sub-category</strong>, and <strong>Storage condition</strong> are included.</li>
+      <li>A SKU is only transferred to a destination store where it is marked <strong>active (TRUE)</strong> in the Library.</li>
+      <li>Among all eligible destination stores, the one with the <strong>highest sales</strong> for that SKU receives the transfer.</li>
+      <li>Transfer quantity = source stock minus the <em>Min Stock to Keep</em> value (default 0 = transfer all).</li>
+      <li>Downloaded CSV columns: <em>From Provider Id, To Provider Id, Scheduled, SKU, Quantity</em>.</li>
+    </ul>
+  </div>
+</details>
 
 <div class="step"><span class="n">1</span> Upload Files</div>
 <div class="upload-row">
